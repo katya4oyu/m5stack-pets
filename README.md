@@ -1,11 +1,78 @@
 # m5stack-pets
 
-M5Stack CoreS3 Liteで小さなペット表現を試しながら、arduino-cli と ESP-IDF の開発に慣れるための実験リポジトリです。
+Codex app の Codex pets（`hatch-pet` skill で作成したカスタム pet）を M5Stack CoreS3 Lite で表示するデモリポジトリです。
+
+## Requirements
+
+ローカルに次のコマンドが必要です。
+
+- `mise`: このリポジトリの task runner
+- `arduino-cli`: Arduino 版の build / upload / monitor
+- `eim`: ESP-IDF v5.5 の install / build / flash
+
+初回セットアップは mise task から実行します。
+
+```sh
+mise install
+mise run setup
+```
+
+`mise install` は Python / Ninja / `uv` を用意します。`mise run setup` は M5Stack Arduino core / `M5Unified`、ESP-IDF v5.5 をセットアップします。
+
+## Hatch Pet asset flow
+
+このリポジトリで重要なのは、Codex app の `hatch-pet` skill で作成した pet 素材を取り込み、M5Stack で扱いやすい runtime asset に変換する流れです。
+
+1. `hatch-pet` skill の run directory を `assets/<pet-id>/source` に取り込む
+2. `source/frames` の 192 x 208 PNG frames を M5Stack 表示向けの `display-96-png` に縮小変換する
+3. 変換時に実機 runtime で include する C++ header も生成する
+4. Arduino 版では `display-96-png` を SPIFFS image にして書き込む
+
+新しい Hatch Pet run を取り込んで変換する場合は:
+
+```sh
+RUN_DIR=/path/to/bitomos-umi-run \
+PET_ID=bitomos-umi \
+DISPLAY_NAME="Bitomos Umi" \
+FORCE=1 \
+mise run assets:import-and-build
+```
+
+取り込み済み pet の表示用 asset だけを作り直す場合は:
+
+```sh
+PET_ID=bitomos-umi FORCE=1 mise run assets:build-display
+```
+
+curated assets をまとめて再生成する場合は:
+
+```sh
+mise run assets:build-display:all
+```
+
+`assets/<pet-id>/source` は Hatch Pet run 由来のローカル変換元です。通常は Git 管理せず、実機 runtime では `assets/<pet-id>/display-96-png` の PNG frames と生成 header を使います。
+
+## Build and upload
+
+Arduino 版:
+
+```sh
+mise run arduino:basic-pet:build
+PORT=/dev/cu.usbmodemXXXX mise run arduino:basic-pet:upload
+```
+
+ESP-IDF 版:
+
+```sh
+mise run esp:basic-pet:set-target
+mise run esp:basic-pet:build
+PORT=/dev/cu.usbmodemXXXX mise run esp:basic-pet:flash-monitor
+```
 
 ## Projects
 
-- `arduino/basic-pet`: arduino-cli版の最小サンプル
-- `esp-idf/basic-pet`: ESP-IDF版の最小サンプル
+- `arduino/basic-pet`: arduino-cli 版の最小サンプル
+- `esp-idf/basic-pet`: ESP-IDF 版の最小サンプル
 
 ## Target device
 
@@ -15,44 +82,13 @@ M5Stack CoreS3 Liteで小さなペット表現を試しながら、arduino-cli �
 - Flash: 16MB
 - PSRAM: 8MB
 
-## First steps
-
-Arduino版は `arduino-cli` から `arduino/basic-pet` を M5Stack CoreS3 ターゲットでビルドします。
-
-```sh
-mise run arduino:setup
-mise run arduino:basic-pet:build
-```
-
-ESP-IDF版は公式ESP-IDF環境で次を実行します。
-
-```sh
-cd esp-idf/basic-pet
-idf.py set-target esp32s3
-idf.py build
-idf.py flash monitor
-```
-
-## Assets and animation
+## Docs
 
 CoreS3-Lite 向け `esp-idf/basic-pet` の画面・タッチ操作・asset runtime・検証観点は
 [`docs/basic-pet-cores3-lite.md`](docs/basic-pet-cores3-lite.md) にまとめています。
 
 Bitomos の spritesheet / 切り出しフレームを M5Stack CoreS3 で扱う方針は
 [`docs/animation-guide.md`](docs/animation-guide.md) にまとめています。
-
-`assets/` はローカルの Codex pet/run directory から取り込む作業場所です。実機 runtime では
-`display-96-png` の PNG 形式を使います。
-`source/` はローカル変換元なので Git 管理しません。
-
-Codex pet の run directory を repo に取り込む場合は:
-
-```sh
-python3 tools/import-codex-pet.py \
-  --run-dir /path/to/bitomos-umi-run \
-  --pet-id bitomos-umi \
-  --display-name "Bitomos Umi"
-```
 
 Pet animation の共通再生 helper は:
 
@@ -63,22 +99,3 @@ Pet animation の共通再生 helper は:
 共通ライブラリは `libs/codex-pet-anim` に置いています。state/frame/duration は pet
 ごとに変わりうるため、共通ライブラリには固定値を入れません。実機 runtime では JSON を
 読まず、asset 生成時に作る C++ header を include します。
-
-実機向けの PNG assets を事前生成する場合は:
-
-```sh
-python3 tools/build-display-assets.py \
-  --pet-dir assets/bitomos-umi \
-  --width 96 \
-  --resample box \
-  --force
-```
-
-このコマンドは `assets/bitomos-umi/display-96-png/bitomos_umi_anim.h` も生成します。
-
-Arduino 版は SPIFFS ありの `factory_4apps` partition scheme でビルドし、PNG assets を SPIFFS image として
-別途書き込みます。
-
-```sh
-PORT=/dev/cu.usbmodemXXXX mise run arduino:basic-pet:upload
-```

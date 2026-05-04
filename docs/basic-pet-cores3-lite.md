@@ -230,7 +230,7 @@ prerequisite check 用として使えます。
 
 ```sh
 mise install
-mise exec -- eim install -i v5.5
+mise run setup
 ```
 
 mise task にはスキップ判定があります。ESP-IDF v5.5 が install 済みなら
@@ -241,14 +241,6 @@ mise run esp:idf:install
 ```
 
 build:
-
-```sh
-cd esp-idf/basic-pet
-mise exec -- eim run "idf.py set-target esp32s3" v5.5
-mise exec -- eim run "idf.py build" v5.5
-```
-
-または repo root から mise task を使います。
 
 ```sh
 mise run esp:basic-pet:set-target
@@ -280,20 +272,12 @@ E (...) cpu_start: Failed to init external RAM!
 flash:
 
 ```sh
-cd esp-idf/basic-pet
-mise exec -- eim run "idf.py flash monitor" v5.5
-```
-
-mise task で flash + monitor する場合:
-
-```sh
 mise run esp:basic-pet:flash-monitor
 ```
 
 port を明示する場合:
 
 ```sh
-mise exec -- eim run "idf.py -p /dev/cu.usbmodemXXXX flash monitor" v5.5
 PORT=/dev/cu.usbmodemXXXX mise run esp:basic-pet:flash-monitor
 ```
 
@@ -302,8 +286,7 @@ PORT=/dev/cu.usbmodemXXXX mise run esp:basic-pet:flash-monitor
 以下の build は成功済みです。
 
 ```sh
-cd esp-idf/basic-pet
-mise exec -- eim run "idf.py build" v5.5
+mise run esp:basic-pet:build
 ```
 
 確認された build 条件:

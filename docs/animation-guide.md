@@ -84,14 +84,15 @@ local import は `.gitignore` します。
 Codex pet の run directory をそのまま取り込むには importer を使います。
 
 ```sh
-python3 tools/import-codex-pet.py \
-  --run-dir /path/to/bitomos-umi-run \
-  --pet-id bitomos-umi \
-  --display-name "Bitomos Umi"
+RUN_DIR=/path/to/bitomos-umi-run \
+PET_ID=bitomos-umi \
+DISPLAY_NAME="Bitomos Umi" \
+FORCE=1 \
+mise run assets:import-codex-pet
 ```
 
 importer は `frames/` と `final/spritesheet.webp` をコピーします。既存の取り込み結果を
-置き換える場合は `--force` を付けます。`qa/` や mp4 preview は人間の確認用なので、
+置き換える場合は `FORCE=1` を付けます。`qa/` や mp4 preview は人間の確認用なので、
 repo の `assets/` には入れません。
 
 import 後の配置:
@@ -108,11 +109,7 @@ example asset には含めません。
 変換後の表示用素材は `display-96-png` に出します。
 
 ```sh
-python3 tools/build-display-assets.py \
-  --pet-dir assets/bitomos-umi \
-  --width 96 \
-  --resample box \
-  --force
+PET_ID=bitomos-umi FORCE=1 mise run assets:build-display
 ```
 
 ```text

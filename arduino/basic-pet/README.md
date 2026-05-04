@@ -16,8 +16,7 @@ Expected SPIFFS paths are shortened for Arduino SPIFFS filename limits:
 Generate PNG assets with:
 
 ```sh
-python3 tools/build-display-assets.py --pet-dir assets/aomi --width 96 --resample box --force
-python3 tools/build-display-assets.py --pet-dir assets/bitomos-umi --width 96 --resample box --force
+mise run assets:build-display:all
 ```
 
 Copy the generated `display-96-png` directories into the SPIFFS data image under
@@ -27,7 +26,7 @@ Compile for CoreS3 with the M5Stack Arduino core and the SPIFFS partition
 scheme used by this sketch:
 
 ```sh
-arduino-cli compile --fqbn m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps arduino/basic-pet
+mise run arduino:basic-pet:build
 ```
 
 The default M5CoreS3 partition scheme is FATFS, so `SPIFFS.begin()` will fail

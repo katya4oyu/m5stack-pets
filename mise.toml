@@ -1,6 +1,7 @@
 [tools]
 python = "3.13"
 ninja = "latest"
+uv = "latest"
 
 [tasks."esp:idf:install"]
 description = "Install ESP-IDF v5.5 with EIM if missing or incomplete"
@@ -17,6 +18,58 @@ else
   fi
   eim --log-file /private/tmp/eim.log install -i v5.5
 fi
+'''
+
+[tasks."setup"]
+description = "Install Arduino board support and ESP-IDF"
+run = '''
+mise run arduino:setup
+mise run esp:idf:install
+'''
+
+[tasks."assets:import-codex-pet"]
+description = "Import a Hatch Pet run directory into assets/<PET_ID>/source; set RUN_DIR, PET_ID, DISPLAY_NAME"
+run = '''
+: "${RUN_DIR:?set RUN_DIR=/path/to/hatch-pet-run}"
+: "${PET_ID:?set PET_ID=your-pet-id}"
+if [ -n "${DISPLAY_NAME:-}" ]; then
+  UV_CACHE_DIR="${UV_CACHE_DIR:-.uv-cache}" tools/import-codex-pet.py \
+    --run-dir "$RUN_DIR" \
+    --pet-id "$PET_ID" \
+    --display-name "$DISPLAY_NAME" \
+    ${FORCE:+--force}
+else
+  UV_CACHE_DIR="${UV_CACHE_DIR:-.uv-cache}" tools/import-codex-pet.py \
+    --run-dir "$RUN_DIR" \
+    --pet-id "$PET_ID" \
+    ${FORCE:+--force}
+fi
+'''
+
+[tasks."assets:build-display"]
+description = "Convert assets/<PET_ID>/source frames into M5Stack display PNG assets"
+run = '''
+: "${PET_ID:?set PET_ID=your-pet-id}"
+UV_CACHE_DIR="${UV_CACHE_DIR:-.uv-cache}" tools/build-display-assets.py \
+  --pet-dir "assets/$PET_ID" \
+  --width "${WIDTH:-96}" \
+  --resample "${RESAMPLE:-box}" \
+  ${FORCE:+--force}
+'''
+
+[tasks."assets:import-and-build"]
+description = "Import a Hatch Pet run and immediately build M5Stack display assets"
+run = '''
+mise run assets:import-codex-pet
+mise run assets:build-display
+'''
+
+[tasks."assets:build-display:all"]
+description = "Rebuild display PNG assets for the curated pets in assets/"
+run = '''
+for pet_id in aomi bitomos-umi; do
+  PET_ID="$pet_id" FORCE=1 mise run assets:build-display
+done
 '''
 
 [tasks."esp:basic-pet:set-target"]

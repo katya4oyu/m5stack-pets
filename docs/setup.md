@@ -4,39 +4,53 @@
 
 - M5Stack CoreS3 Lite
 
-## arduino-cli
+## 必要なコマンド
 
-`arduino/basic-pet` を `arduino-cli` でビルドします。M5Stackのボード定義と `M5Unified` ライブラリを入れてから使います。
+- `mise`
+- `arduino-cli`
+- `eim`
 
-ボードFQBNは環境に入れたM5Stack/ESP32パッケージに合わせて確認してください。
+## 初回セットアップ
+
+この repo で使うセットアップは mise task から実行します。
 
 ```sh
-arduino-cli board listall | grep -i cores3
-arduino-cli lib install M5Unified
-arduino-cli compile --fqbn m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps arduino/basic-pet
+mise install
+mise run setup
+```
+
+`mise run setup` は次を実行します。
+
+- M5Stack Arduino core と `M5Unified` の導入
+- ESP-IDF v5.5 の導入
+
+Python 変換ツールの依存関係は script inline metadata に書き、mise が入れる `uv` で実行します。
+
+## Arduino
+
+build:
+
+```sh
+mise run arduino:basic-pet:build
+```
+
+upload:
+
+```sh
+PORT=/dev/cu.usbmodemXXXX mise run arduino:basic-pet:upload
 ```
 
 ## ESP-IDF
 
-macOSでは、まずmiseでビルドに使う汎用ツールを入れます。
+build:
 
 ```sh
-mise install
+mise run esp:basic-pet:set-target
+mise run esp:basic-pet:build
 ```
 
-Homebrew側の依存関係は、ESP-IDFのmacOSセットアップに合わせて現行版を使います。
+flash + monitor:
 
 ```sh
-brew install libgcrypt glib pixman sdl2 libslirp dfu-util
+PORT=/dev/cu.usbmodemXXXX mise run esp:basic-pet:flash-monitor
 ```
-
-公式ESP-IDF環境で使います。初回は依存コンポーネントの取得が走ります。
-
-```sh
-cd esp-idf/basic-pet
-idf.py set-target esp32s3
-idf.py build
-idf.py flash monitor
-```
-
-シリアルポートを明示する場合は `-p /dev/cu.usbmodem...` を付けます。
