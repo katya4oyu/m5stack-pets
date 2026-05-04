@@ -4,3 +4,16 @@ sdkconfig
 sdkconfig.old
 managed_components/
 dependencies.lock
+eim_config.toml
+
+# Local pet imports are usually pulled from the local Codex pet/run directories.
+# Keep only curated runtime display assets in git.
+/assets/*
+!/assets/aomi/
+/assets/aomi/*
+!/assets/aomi/display-96-png/
+!/assets/aomi/display-96-png/**
+!/assets/bitomos-umi/
+/assets/bitomos-umi/*
+!/assets/bitomos-umi/display-96-png/
+!/assets/bitomos-umi/display-96-png/**

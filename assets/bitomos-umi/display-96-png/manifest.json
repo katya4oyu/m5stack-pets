@@ -1,0 +1,434 @@
+{
+  "format": "m5stack-display-png",
+  "sourceFormat": "codex-pet",
+  "petId": "bitomos-umi",
+  "displayName": "Bitomos Umi",
+  "sourceFrame": {
+    "width": 192,
+    "height": 208
+  },
+  "displayFrame": {
+    "width": 96,
+    "height": 104
+  },
+  "resample": "box",
+  "alpha": "straight RGBA PNG; resized with premultiplied-alpha sampling",
+  "frameCount": 57,
+  "states": [
+    {
+      "name": "idle",
+      "frames": [
+        {
+          "index": 0,
+          "file": "idle/00.png",
+          "durationMs": 280
+        },
+        {
+          "index": 1,
+          "file": "idle/01.png",
+          "durationMs": 110
+        },
+        {
+          "index": 2,
+          "file": "idle/02.png",
+          "durationMs": 110
+        },
+        {
+          "index": 3,
+          "file": "idle/03.png",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "file": "idle/04.png",
+          "durationMs": 140
+        },
+        {
+          "index": 5,
+          "file": "idle/05.png",
+          "durationMs": 320
+        }
+      ],
+      "frameCount": 6,
+      "durationsMs": [
+        280,
+        110,
+        110,
+        140,
+        140,
+        320
+      ]
+    },
+    {
+      "name": "running-right",
+      "frames": [
+        {
+          "index": 0,
+          "file": "running-right/00.png",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "file": "running-right/01.png",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "file": "running-right/02.png",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "file": "running-right/03.png",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "file": "running-right/04.png",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "file": "running-right/05.png",
+          "durationMs": 120
+        },
+        {
+          "index": 6,
+          "file": "running-right/06.png",
+          "durationMs": 120
+        },
+        {
+          "index": 7,
+          "file": "running-right/07.png",
+          "durationMs": 220
+        }
+      ],
+      "frameCount": 8,
+      "durationsMs": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ]
+    },
+    {
+      "name": "running-left",
+      "frames": [
+        {
+          "index": 0,
+          "file": "running-left/00.png",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "file": "running-left/01.png",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "file": "running-left/02.png",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "file": "running-left/03.png",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "file": "running-left/04.png",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "file": "running-left/05.png",
+          "durationMs": 120
+        },
+        {
+          "index": 6,
+          "file": "running-left/06.png",
+          "durationMs": 120
+        },
+        {
+          "index": 7,
+          "file": "running-left/07.png",
+          "durationMs": 220
+        }
+      ],
+      "frameCount": 8,
+      "durationsMs": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ]
+    },
+    {
+      "name": "waving",
+      "frames": [
+        {
+          "index": 0,
+          "file": "waving/00.png",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "file": "waving/01.png",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "file": "waving/02.png",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "file": "waving/03.png",
+          "durationMs": 280
+        }
+      ],
+      "frameCount": 4,
+      "durationsMs": [
+        140,
+        140,
+        140,
+        280
+      ]
+    },
+    {
+      "name": "jumping",
+      "frames": [
+        {
+          "index": 0,
+          "file": "jumping/00.png",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "file": "jumping/01.png",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "file": "jumping/02.png",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "file": "jumping/03.png",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "file": "jumping/04.png",
+          "durationMs": 280
+        }
+      ],
+      "frameCount": 5,
+      "durationsMs": [
+        140,
+        140,
+        140,
+        140,
+        280
+      ]
+    },
+    {
+      "name": "failed",
+      "frames": [
+        {
+          "index": 0,
+          "file": "failed/00.png",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "file": "failed/01.png",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "file": "failed/02.png",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "file": "failed/03.png",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "file": "failed/04.png",
+          "durationMs": 140
+        },
+        {
+          "index": 5,
+          "file": "failed/05.png",
+          "durationMs": 140
+        },
+        {
+          "index": 6,
+          "file": "failed/06.png",
+          "durationMs": 140
+        },
+        {
+          "index": 7,
+          "file": "failed/07.png",
+          "durationMs": 240
+        }
+      ],
+      "frameCount": 8,
+      "durationsMs": [
+        140,
+        140,
+        140,
+        140,
+        140,
+        140,
+        140,
+        240
+      ]
+    },
+    {
+      "name": "waiting",
+      "frames": [
+        {
+          "index": 0,
+          "file": "waiting/00.png",
+          "durationMs": 150
+        },
+        {
+          "index": 1,
+          "file": "waiting/01.png",
+          "durationMs": 150
+        },
+        {
+          "index": 2,
+          "file": "waiting/02.png",
+          "durationMs": 150
+        },
+        {
+          "index": 3,
+          "file": "waiting/03.png",
+          "durationMs": 150
+        },
+        {
+          "index": 4,
+          "file": "waiting/04.png",
+          "durationMs": 150
+        },
+        {
+          "index": 5,
+          "file": "waiting/05.png",
+          "durationMs": 260
+        }
+      ],
+      "frameCount": 6,
+      "durationsMs": [
+        150,
+        150,
+        150,
+        150,
+        150,
+        260
+      ]
+    },
+    {
+      "name": "running",
+      "frames": [
+        {
+          "index": 0,
+          "file": "running/00.png",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "file": "running/01.png",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "file": "running/02.png",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "file": "running/03.png",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "file": "running/04.png",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "file": "running/05.png",
+          "durationMs": 220
+        }
+      ],
+      "frameCount": 6,
+      "durationsMs": [
+        120,
+        120,
+        120,
+        120,
+        120,
+        220
+      ]
+    },
+    {
+      "name": "review",
+      "frames": [
+        {
+          "index": 0,
+          "file": "review/00.png",
+          "durationMs": 150
+        },
+        {
+          "index": 1,
+          "file": "review/01.png",
+          "durationMs": 150
+        },
+        {
+          "index": 2,
+          "file": "review/02.png",
+          "durationMs": 150
+        },
+        {
+          "index": 3,
+          "file": "review/03.png",
+          "durationMs": 150
+        },
+        {
+          "index": 4,
+          "file": "review/04.png",
+          "durationMs": 150
+        },
+        {
+          "index": 5,
+          "file": "review/05.png",
+          "durationMs": 280
+        }
+      ],
+      "frameCount": 6,
+      "durationsMs": [
+        150,
+        150,
+        150,
+        150,
+        150,
+        280
+      ]
+    }
+  ],
+  "runtimeNote": "Runtime can decode PNG frames when entering a state or pet, cache them as RGB565 sprites/buffers, then draw cached frames during playback."
+}

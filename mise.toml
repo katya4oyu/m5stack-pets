@@ -1,4 +1,132 @@
 [tools]
 python = "3.13"
-cmake = "3.31"
 ninja = "latest"
+
+[tasks."esp:idf:install"]
+description = "Install ESP-IDF v5.5 with EIM if missing or incomplete"
+run = '''
+idf_dir="${IDF_DIR:-$HOME/.espressif/v5.5/esp-idf}"
+if eim --log-file /private/tmp/eim.log run "idf.py --version" v5.5 >/dev/null 2>&1; then
+  echo "ESP-IDF v5.5 is already installed and usable."
+else
+  if [ -e "$idf_dir" ] && [ ! -f "$idf_dir/tools/idf.py" ]; then
+    backup="${idf_dir}.partial.$(date +%Y%m%d%H%M%S)"
+    echo "Found incomplete ESP-IDF directory: $idf_dir"
+    echo "Moving it aside to: $backup"
+    mv "$idf_dir" "$backup"
+  fi
+  eim --log-file /private/tmp/eim.log install -i v5.5
+fi
+'''
+
+[tasks."esp:basic-pet:set-target"]
+description = "Set esp-idf/basic-pet target to esp32s3"
+dir = "esp-idf/basic-pet"
+run = '''
+if [ "${FORCE:-0}" = "1" ]; then
+  eim --log-file /private/tmp/eim.log run "idf.py set-target esp32s3" v5.5
+elif [ -f sdkconfig ] && grep -q '^CONFIG_IDF_TARGET="esp32s3"$' sdkconfig; then
+  echo "esp-idf/basic-pet target is already esp32s3."
+else
+  eim --log-file /private/tmp/eim.log run "idf.py set-target esp32s3" v5.5
+fi
+'''
+
+[tasks."esp:basic-pet:build"]
+description = "Build esp-idf/basic-pet with ESP-IDF v5.5"
+dir = "esp-idf/basic-pet"
+run = "eim --log-file /private/tmp/eim.log run \"idf.py build\" v5.5"
+
+[tasks."esp:basic-pet:flash"]
+description = "Flash esp-idf/basic-pet to CoreS3-Lite; override port with PORT=/dev/cu.xxx"
+dir = "esp-idf/basic-pet"
+run = "eim --log-file /private/tmp/eim.log run \"idf.py -p ${PORT:-/dev/cu.usbmodem1101} flash\" v5.5"
+
+[tasks."esp:basic-pet:monitor"]
+description = "Open serial monitor for CoreS3-Lite; override port with PORT=/dev/cu.xxx"
+dir = "esp-idf/basic-pet"
+run = "eim --log-file /private/tmp/eim.log run \"idf.py -p ${PORT:-/dev/cu.usbmodem1101} monitor\" v5.5"
+
+[tasks."esp:basic-pet:flash-monitor"]
+description = "Flash and monitor esp-idf/basic-pet; override port with PORT=/dev/cu.xxx"
+dir = "esp-idf/basic-pet"
+run = "eim --log-file /private/tmp/eim.log run \"idf.py -p ${PORT:-/dev/cu.usbmodem1101} flash monitor\" v5.5"
+
+[tasks."arduino:setup"]
+description = "Install the M5Stack Arduino core and M5Unified library"
+run = '''
+arduino-cli config add board_manager.additional_urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
+arduino-cli core update-index
+arduino-cli core install m5stack:esp32
+arduino-cli lib install M5Unified
+'''
+
+[tasks."arduino:basic-pet:build"]
+description = "Build arduino/basic-pet for M5CoreS3"
+run = '''
+fqbn="m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps"
+arduino-cli compile --fqbn "$fqbn" arduino/basic-pet
+'''
+
+[tasks."arduino:basic-pet:build-spiffs"]
+description = "Build the Arduino SPIFFS image with display-96-png assets"
+run = '''
+stage_dir="build/arduino-basic-pet-spiffs"
+data_dir="$stage_dir/data"
+image="$stage_dir/spiffs.bin"
+mkspiffs="$HOME/Library/Arduino15/packages/m5stack/tools/mkspiffs/0.2.3/mkspiffs"
+states="idle running-right running-left waving jumping failed waiting running review"
+
+rm -rf "$stage_dir"
+mkdir -p "$data_dir"
+
+pet_index=0
+for pet in aomi bitomos-umi; do
+  state_index=0
+  for state in $states; do
+    src="assets/$pet/display-96-png/$state"
+    dst="$data_dir/p$pet_index/s$state_index"
+    mkdir -p "$dst"
+    cp "$src"/*.png "$dst/"
+    state_index=$((state_index + 1))
+  done
+  pet_index=$((pet_index + 1))
+done
+
+"$mkspiffs" -c "$data_dir" -b 4096 -p 256 -s 0x2F0000 "$image"
+echo "$image"
+'''
+
+[tasks."arduino:basic-pet:upload"]
+description = "Build/upload arduino/basic-pet and its SPIFFS assets; override port with PORT=/dev/cu.xxx"
+run = '''
+fqbn="m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps"
+arduino-cli compile --upload --fqbn "$fqbn" --port ${PORT:-/dev/cu.usbmodem1101} arduino/basic-pet
+mise run arduino:basic-pet:upload-spiffs
+'''
+
+[tasks."arduino:basic-pet:upload-spiffs"]
+description = "Upload the Arduino SPIFFS image; override port with PORT=/dev/cu.xxx"
+run = '''
+mise run arduino:basic-pet:build-spiffs
+image="build/arduino-basic-pet-spiffs/spiffs.bin"
+esptool="$HOME/Library/Arduino15/packages/m5stack/tools/esptool_py/5.1.0/esptool"
+"$esptool" \
+  --chip esp32s3 \
+  --port ${PORT:-/dev/cu.usbmodem1101} \
+  --baud 921600 \
+  --before default_reset \
+  --after hard_reset \
+  write_flash 0xD00000 "$image"
+'''
+
+[tasks."arduino:basic-pet:monitor"]
+description = "Open serial monitor for arduino/basic-pet; override port with PORT=/dev/cu.xxx"
+run = "arduino-cli monitor --fqbn m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps --port ${PORT:-/dev/cu.usbmodem1101} --config baudrate=115200"
+
+[tasks."arduino:basic-pet:upload-monitor"]
+description = "Upload arduino/basic-pet, upload SPIFFS assets, and then open the serial monitor; override port with PORT=/dev/cu.xxx"
+run = '''
+mise run arduino:basic-pet:upload
+arduino-cli monitor --fqbn m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps --port ${PORT:-/dev/cu.usbmodem1101} --config baudrate=115200
+'''

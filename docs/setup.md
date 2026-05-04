@@ -13,7 +13,7 @@
 ```sh
 arduino-cli board listall | grep -i cores3
 arduino-cli lib install M5Unified
-arduino-cli compile --fqbn <your-core-s3-fqbn> arduino/basic-pet
+arduino-cli compile --fqbn m5stack:esp32:m5stack_cores3:PartitionScheme=factory_4apps arduino/basic-pet
 ```
 
 ## ESP-IDF
