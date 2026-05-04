@@ -18,6 +18,18 @@ arduino-cli compile --fqbn <your-core-s3-fqbn> arduino/basic-pet
 
 ## ESP-IDF
 
+macOSでは、まずmiseでビルドに使う汎用ツールを入れます。
+
+```sh
+mise install
+```
+
+Homebrew側の依存関係は、ESP-IDFのmacOSセットアップに合わせて現行版を使います。
+
+```sh
+brew install libgcrypt glib pixman sdl2 libslirp dfu-util
+```
+
 公式ESP-IDF環境で使います。初回は依存コンポーネントの取得が走ります。
 
 ```sh
