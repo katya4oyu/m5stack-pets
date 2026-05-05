@@ -26,7 +26,7 @@ mise run setup
 1. `hatch-pet` skill の run directory を `assets/<pet-id>/source` に取り込む
 2. `source/frames` の 192 x 208 PNG frames を M5Stack 表示向けの `display-96-png` に縮小変換する
 3. 変換時に実機 runtime で include する C++ header も生成する
-4. Arduino 版では `display-96-png` を SPIFFS image にして書き込む
+4. ESP-IDF / Arduino 版では `display-96-png` を microSD に置いて運用する
 
 新しい Hatch Pet run を取り込んで変換する場合は:
 
@@ -51,6 +51,26 @@ mise run assets:build-display:all
 ```
 
 `assets/<pet-id>/source` は Hatch Pet run 由来のローカル変換元です。通常は Git 管理せず、実機 runtime では `assets/<pet-id>/display-96-png` の PNG frames と生成 header を使います。
+
+`basic-pet` は ESP-IDF / Arduino 版とも microSD の asset を読みます。microSD がない場合や対象 PNG が
+ない場合は画面と serial log にエラーを出します。
+
+microSD は FAT32 で format し、Mac などに mount した状態で次を実行します:
+
+```sh
+SDCARD="/Volumes/NO NAME" mise run esp:basic-pet:copy-sd-assets
+```
+
+`SDCARD` は Mac 側の mount path です。firmware runtime では card label に関係なく
+`/sdcard` に mount されます。Arduino 版からは
+`mise run arduino:basic-pet:copy-sd-assets` でも同じコピー task を呼べます。
+
+runtime path は次の形です:
+
+```text
+/sdcard/assets/aomi/display-96-png/idle/00.png
+/sdcard/assets/bitomos-umi/display-96-png/review/00.png
+```
 
 ## Build and upload
 

@@ -1,13 +1,16 @@
 #include <M5GFX.h>
 #include <M5Unified.h>
 
-#include "esp_check.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include "esp_spiffs.h"
 #include "esp_timer.h"
+#include "esp_vfs_fat.h"
+#include "driver/gpio.h"
+#include "driver/sdspi_host.h"
+#include "driver/spi_common.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "sdmmc_cmd.h"
 
 #include "aomi_anim.h"
 #include "bitomos_umi_anim.h"
@@ -30,8 +33,13 @@ static constexpr int k_pet_height = 104;
 static constexpr int k_pet_x = (k_screen_width - k_pet_width) / 2;
 static constexpr int k_pet_y = (k_screen_height - k_footer_height - k_pet_height) / 2;
 static constexpr int k_footer_y = k_screen_height - k_footer_height;
-static constexpr char k_spiffs_base_path[] = "/spiffs";
+static constexpr char k_sdcard_base_path[] = "/sdcard";
+static constexpr char k_sd_asset_root[] = "assets";
 static constexpr char k_png_asset_dir[] = "display-96-png";
+static constexpr gpio_num_t k_sd_pin_miso = GPIO_NUM_35;
+static constexpr gpio_num_t k_sd_pin_mosi = GPIO_NUM_37;
+static constexpr gpio_num_t k_sd_pin_clk = GPIO_NUM_36;
+static constexpr gpio_num_t k_sd_pin_cs = GPIO_NUM_4;
 static constexpr uint32_t k_tick_ms = 16;
 static constexpr uint32_t k_bg_color = 0x101418;
 static constexpr uint32_t k_footer_color = 0x1c2228;
@@ -49,6 +57,8 @@ struct StateFrameCache {
     uint8_t frame_count = 0;
     uint16_t* pixels = nullptr;
     size_t pixel_capacity = 0;
+    size_t failed_pet_index = SIZE_MAX;
+    uint8_t failed_state_index = UINT8_MAX;
 };
 
 static PetEntry g_pets[] = {
@@ -59,6 +69,12 @@ static PetEntry g_pets[] = {
 static size_t g_current_pet_index = 0;
 static StateFrameCache g_state_cache;
 static M5Canvas g_decode_canvas(&M5.Display);
+static sdmmc_card_t* g_sd_card = nullptr;
+static bool g_sd_ready = false;
+static bool g_message_visible = false;
+static char g_last_message_line1[64] = {};
+static char g_last_message_line2[192] = {};
+static char g_last_status_text[64] = {};
 
 static uint32_t now_ms()
 {
@@ -90,27 +106,56 @@ static uint16_t bg_rgb565()
     return rgb_to_rgb565(16, 20, 24);
 }
 
-static esp_err_t mount_spiffs()
+static esp_err_t mount_sdcard()
 {
-    esp_vfs_spiffs_conf_t conf = {};
-    conf.base_path = k_spiffs_base_path;
-    conf.partition_label = "storage";
-    conf.max_files = 8;
-    conf.format_if_mount_failed = false;
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {};
+    mount_config.format_if_mount_failed = false;
+    mount_config.max_files = 8;
+    mount_config.allocation_unit_size = 16 * 1024;
 
-    const esp_err_t err = esp_vfs_spiffs_register(&conf);
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    const spi_host_device_t spi_host = static_cast<spi_host_device_t>(host.slot);
+    spi_bus_config_t bus_config = {};
+    bus_config.miso_io_num = k_sd_pin_miso;
+    bus_config.mosi_io_num = k_sd_pin_mosi;
+    bus_config.sclk_io_num = k_sd_pin_clk;
+    bus_config.quadwp_io_num = -1;
+    bus_config.quadhd_io_num = -1;
+    bus_config.max_transfer_sz = 4000;
+
+    esp_err_t err = spi_bus_initialize(spi_host, &bus_config, SDSPI_DEFAULT_DMA);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "sd spi bus init failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    if (err == ESP_ERR_INVALID_STATE) {
+        ESP_LOGI(TAG, "sd spi bus already initialized, continuing");
+    }
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = k_sd_pin_cs;
+    slot_config.host_id = spi_host;
+
+    err = esp_vfs_fat_sdspi_mount(k_sdcard_base_path, &host, &slot_config, &mount_config, &g_sd_card);
     if (err != ESP_OK) {
+        ESP_LOGW(TAG, "sdcard mount failed: %s", esp_err_to_name(err));
         return err;
     }
 
-    size_t total = 0;
-    size_t used = 0;
-    ESP_RETURN_ON_ERROR(esp_spiffs_info("storage", &total, &used), TAG, "spiffs info failed");
-    ESP_LOGI(TAG, "spiffs mounted: total=%u used=%u", static_cast<unsigned>(total), static_cast<unsigned>(used));
+    ESP_LOGI(TAG, "sdcard mounted at %s", k_sdcard_base_path);
+    sdmmc_card_print_info(stdout, g_sd_card);
     return ESP_OK;
 }
 
-static bool make_png_frame_path(char* out, size_t out_size, const codex_pet::PetSpec& spec, uint8_t state_index, uint8_t frame_index)
+static void mount_asset_storage()
+{
+    g_sd_ready = mount_sdcard() == ESP_OK;
+    if (!g_sd_ready) {
+        ESP_LOGE(TAG, "sdcard asset storage not mounted");
+    }
+}
+
+static bool make_sd_png_frame_path(char* out, size_t out_size, const codex_pet::PetSpec& spec, uint8_t state_index, uint8_t frame_index)
 {
     const codex_pet::StateInfo* state = codex_pet::stateInfo(spec, state_index);
     if (!out || out_size == 0 || !state || frame_index >= state->frameCount) {
@@ -120,8 +165,9 @@ static bool make_png_frame_path(char* out, size_t out_size, const codex_pet::Pet
     const int written = snprintf(
         out,
         out_size,
-        "%s/%s/%s/%s/%02u.png",
-        k_spiffs_base_path,
+        "%s/%s/%s/%s/%s/%02u.png",
+        k_sdcard_base_path,
+        k_sd_asset_root,
         spec.petId,
         k_png_asset_dir,
         state->name,
@@ -129,14 +175,14 @@ static bool make_png_frame_path(char* out, size_t out_size, const codex_pet::Pet
     return written > 0 && static_cast<size_t>(written) < out_size;
 }
 
-static bool read_file(const char* path, uint8_t** out_data, size_t* out_size)
+static bool read_asset_file(const char* path, uint8_t** out_data, size_t* out_size)
 {
     *out_data = nullptr;
     *out_size = 0;
 
     FILE* file = fopen(path, "rb");
     if (!file) {
-        ESP_LOGE(TAG, "open failed: %s", path);
+        ESP_LOGE(TAG, "asset not found: %s", path);
         return false;
     }
 
@@ -145,7 +191,7 @@ static bool read_file(const char* path, uint8_t** out_data, size_t* out_size)
     ok = ok && file_size > 0 && fseek(file, 0, SEEK_SET) == 0;
     if (!ok) {
         fclose(file);
-        ESP_LOGE(TAG, "size failed: %s", path);
+        ESP_LOGW(TAG, "size failed: %s", path);
         return false;
     }
 
@@ -160,12 +206,13 @@ static bool read_file(const char* path, uint8_t** out_data, size_t* out_size)
     fclose(file);
     if (!ok) {
         heap_caps_free(data);
-        ESP_LOGE(TAG, "read failed: %s", path);
+        ESP_LOGW(TAG, "read failed: %s", path);
         return false;
     }
 
     *out_data = data;
     *out_size = static_cast<size_t>(file_size);
+    ESP_LOGI(TAG, "asset loaded from sdcard: %s", path);
     return true;
 }
 
@@ -199,7 +246,7 @@ static bool decode_png_to_cache(const char* path, uint16_t* dst)
 {
     uint8_t* png = nullptr;
     size_t png_size = 0;
-    if (!read_file(path, &png, &png_size)) {
+    if (!read_asset_file(path, &png, &png_size)) {
         return false;
     }
 
@@ -217,6 +264,45 @@ static bool decode_png_to_cache(const char* path, uint16_t* dst)
     return true;
 }
 
+static void draw_message(const char* line1, const char* line2 = nullptr)
+{
+    const char* safe_line1 = line1 ? line1 : "";
+    const char* safe_line2 = line2 ? line2 : "";
+    if (g_message_visible &&
+        strcmp(g_last_message_line1, safe_line1) == 0 &&
+        strcmp(g_last_message_line2, safe_line2) == 0) {
+        return;
+    }
+
+    M5.Display.fillRect(0, 0, k_screen_width, k_footer_y, k_bg_color);
+    M5.Display.setTextColor(k_text_color, k_bg_color);
+    M5.Display.setTextSize(1);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString(safe_line1, k_screen_width / 2, k_footer_y / 2 - 8);
+    if (safe_line2[0] != '\0') {
+        M5.Display.drawString(safe_line2, k_screen_width / 2, k_footer_y / 2 + 10);
+    }
+    M5.Display.setTextDatum(top_left);
+
+    snprintf(g_last_message_line1, sizeof(g_last_message_line1), "%s", safe_line1);
+    snprintf(g_last_message_line2, sizeof(g_last_message_line2), "%s", safe_line2);
+    g_last_status_text[0] = '\0';
+    g_message_visible = true;
+}
+
+static void clear_message_area_if_needed()
+{
+    if (!g_message_visible) {
+        return;
+    }
+
+    M5.Display.fillRect(0, 0, k_screen_width, k_footer_y, k_bg_color);
+    g_last_message_line1[0] = '\0';
+    g_last_message_line2[0] = '\0';
+    g_last_status_text[0] = '\0';
+    g_message_visible = false;
+}
+
 static bool load_current_state_cache()
 {
     const codex_pet::PetSpec& spec = current_spec();
@@ -224,6 +310,12 @@ static bool load_current_state_cache()
     const codex_pet::StateInfo* state = codex_pet::stateInfo(spec, player.stateIndex);
     if (!state || state->frameCount == 0) {
         ESP_LOGE(TAG, "invalid state: pet=%s state=%u", spec.petId, static_cast<unsigned>(player.stateIndex));
+        draw_message("invalid animation state");
+        return false;
+    }
+
+    if (!g_sd_ready) {
+        draw_message("SD card not mounted");
         return false;
     }
 
@@ -233,12 +325,19 @@ static bool load_current_state_cache()
         return true;
     }
 
+    if (g_state_cache.failed_pet_index == g_current_pet_index &&
+        g_state_cache.failed_state_index == player.stateIndex) {
+        return false;
+    }
+
     if (spec.frameWidth != k_pet_width || spec.frameHeight != k_pet_height) {
         ESP_LOGE(TAG, "unsupported frame size: %ux%u", spec.frameWidth, spec.frameHeight);
+        draw_message("unsupported frame size");
         return false;
     }
 
     if (!ensure_state_cache_capacity(state->frameCount)) {
+        draw_message("state cache allocation failed");
         return false;
     }
 
@@ -250,15 +349,18 @@ static bool load_current_state_cache()
         static_cast<unsigned>(state->frameCount));
 
     for (uint8_t frame = 0; frame < state->frameCount; ++frame) {
-        char path[160] = {};
-        if (!make_png_frame_path(path, sizeof(path), spec, player.stateIndex, frame)) {
+        char sd_path[192] = {};
+        if (!make_sd_png_frame_path(sd_path, sizeof(sd_path), spec, player.stateIndex, frame)) {
             return false;
         }
         uint16_t* dst = g_state_cache.pixels + static_cast<size_t>(frame) * k_pet_width * k_pet_height;
-        if (!decode_png_to_cache(path, dst)) {
+        if (!decode_png_to_cache(sd_path, dst)) {
             g_state_cache.pet_index = SIZE_MAX;
             g_state_cache.state_index = UINT8_MAX;
             g_state_cache.frame_count = 0;
+            g_state_cache.failed_pet_index = g_current_pet_index;
+            g_state_cache.failed_state_index = player.stateIndex;
+            draw_message("PNG asset not found", sd_path);
             return false;
         }
     }
@@ -266,6 +368,8 @@ static bool load_current_state_cache()
     g_state_cache.pet_index = g_current_pet_index;
     g_state_cache.state_index = player.stateIndex;
     g_state_cache.frame_count = state->frameCount;
+    g_state_cache.failed_pet_index = SIZE_MAX;
+    g_state_cache.failed_state_index = UINT8_MAX;
     return true;
 }
 
@@ -277,9 +381,11 @@ static void draw_footer()
     M5.Display.fillRect(0, k_footer_y, k_screen_width, k_footer_height, k_footer_color);
     M5.Display.setTextColor(0xffffff, k_footer_color);
     M5.Display.setTextSize(2);
+    M5.Display.setTextDatum(middle_center);
     M5.Display.drawCenterString("<", left_width / 2, k_footer_y + 16);
     M5.Display.drawCenterString("*", left_width + center_width / 2, k_footer_y + 16);
     M5.Display.drawCenterString(">", left_width + center_width + right_width / 2, k_footer_y + 16);
+    M5.Display.setTextDatum(top_left);
 }
 
 static void draw_status()
@@ -292,10 +398,16 @@ static void draw_status()
         current_pet().short_name,
         codex_pet::stateName(current_spec(), current_player().stateIndex));
 
+    if (!g_message_visible && strcmp(g_last_status_text, text) == 0) {
+        return;
+    }
+
     M5.Display.fillRect(0, 0, k_screen_width, 24, k_bg_color);
     M5.Display.setTextColor(k_text_color, k_bg_color);
     M5.Display.setTextSize(1);
+    M5.Display.setTextDatum(top_left);
     M5.Display.drawString(text, 8, 6);
+    snprintf(g_last_status_text, sizeof(g_last_status_text), "%s", text);
 }
 
 static void render_current_frame()
@@ -308,6 +420,8 @@ static void render_current_frame()
     if (player.frameIndex >= g_state_cache.frame_count) {
         return;
     }
+
+    clear_message_area_if_needed();
 
     const uint16_t* pixels = g_state_cache.pixels + static_cast<size_t>(player.frameIndex) * k_pet_width * k_pet_height;
     M5.Display.startWrite();
@@ -421,15 +535,15 @@ extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "starting CoreS3-Lite basic-pet with M5Unified/M5GFX");
 
-    ESP_ERROR_CHECK(mount_spiffs());
+    M5.begin();
+    M5.Display.setBrightness(128);
+    M5.Display.setRotation(1);
+
+    mount_asset_storage();
 
     for (auto& pet : g_pets) {
         pet.player = codex_pet::makePlayer(*pet.spec, 0, now_ms());
     }
-
-    M5.begin();
-    M5.Display.setBrightness(128);
-    M5.Display.setRotation(1);
 
     create_ui();
     render_current_frame();

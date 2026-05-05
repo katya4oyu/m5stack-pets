@@ -159,7 +159,7 @@ header から取得します。
 
 - `esp-idf/basic-pet/main/main.cpp`
   - UI 作成
-  - SPIFFS mount
+  - microSD mount
   - frame 読み込み
   - PNG decode
   - RGB565 frame cache rendering
@@ -169,44 +169,70 @@ header から取得します。
   - `main.cpp`
   - `libs/codex-pet-anim/include`
   - generated header include path
-- `esp-idf/basic-pet/CMakeLists.txt`
-  - `display-96-png` asset を build directory に staging
-  - SPIFFS image 作成
+  - SD/FATFS component dependencies
 - `esp-idf/basic-pet/partitions.csv`
   - 16MB flash 向け custom partition table
 - `esp-idf/basic-pet/sdkconfig.defaults`
   - PSRAM: enabled, quad mode
   - 16MB flash
   - custom partition table
-  - SPIFFS long object name
+  - FATFS long filename support
 
-## SPIFFS Image
+## microSD Assets
 
-firmware image には runtime display asset だけを含めます。`source/frames` や
-`source/atlas` は含めません。
+ESP-IDF 版は microSD の FAT filesystem を `/sdcard` に mount し、SD 上の PNG asset を
+読みます。SD card がない、mount できない、または対象 frame が見つからない場合は画面と
+serial log にエラーを出します。
 
-staging 後の SPIFFS image source:
+Arduino 版 `arduino/basic-pet` も同じ SD card directory contract を使います。
+
+CoreS3-Lite の内蔵 microSD slot は SPI mode で使います。
+
+| Signal | GPIO |
+| --- | --- |
+| MISO | 35 |
+| MOSI | 37 |
+| SCK | 36 |
+| CS | 4 |
+
+microSD は FAT32 で format してください。現在の curated 2 pet 分は数 MB 程度なので、
+小容量 card でも足ります。Mac などで card を mount したら次を実行します。
+
+```sh
+SDCARD="/Volumes/NO NAME" mise run esp:basic-pet:copy-sd-assets
+```
+
+`SDCARD` は PC 側の mount path です。SD card の volume name が `m5sd` でも
+`NO NAME` でも、firmware 側では固定で `/sdcard` に mount します。
+
+SD card 上の配置:
 
 ```text
-build/spiffs_assets/aomi/display-96-png/...
-build/spiffs_assets/bitomos-umi/display-96-png/...
+assets/aomi/display-96-png/idle/00.png
+assets/aomi/display-96-png/idle/01.png
+assets/bitomos-umi/display-96-png/review/00.png
+assets/bitomos-umi/display-96-png/review/01.png
 ```
 
 runtime path:
 
 ```text
-/spiffs/aomi/display-96-png/idle/00.png
-/spiffs/aomi/display-96-png/idle/01.png
-/spiffs/bitomos-umi/display-96-png/review/00.png
-/spiffs/bitomos-umi/display-96-png/review/01.png
+/sdcard/assets/aomi/display-96-png/idle/00.png
+/sdcard/assets/aomi/display-96-png/idle/01.png
+/sdcard/assets/bitomos-umi/display-96-png/review/00.png
+/sdcard/assets/bitomos-umi/display-96-png/review/01.png
 ```
 
-partition:
+## Storage Troubleshooting
 
-- app: 3MB
-- SPIFFS storage: 6MB
-
-現在の 2 pet 分の `display-96-png` asset には十分なサイズです。
+- 起動ログに `sdcard mounted at /sdcard` が出ていれば SD から読みます。
+- SD mount に失敗した場合は画面に `SD card not mounted` が出ます。
+- 画面に `PNG asset not found` が出た場合、表示された `/sdcard/assets/...` path と
+  SD card 上の配置を照合してください。
+- `display-96-png` は 8.3 filename を超える directory name なので、
+  `sdkconfig.defaults` では FATFS long filename support を有効にしています。
+  設定変更後は `FORCE=1 mise run esp:basic-pet:set-target` で `sdkconfig` を再生成してください。
+- SD card が使えない場合も、アプリはクラッシュせず入力 loop を継続します。
 
 ## 描画方式
 
@@ -296,8 +322,7 @@ mise run esp:basic-pet:build
 - `m5stack_core_s3`: 3.0.2
 - target: `esp32s3`
 - flash size: 16MB
-- app binary size: 約 0x8f7a0
-- SPIFFS image offset: `0x310000`
+- app binary size: 約 0x7beb0
 
 ## 実機 Acceptance Checks
 
@@ -317,8 +342,7 @@ mise run esp:basic-pet:build
 
 ## Known Limitations
 
-- v1 は ESP-IDF 版のみ。
-- Arduino 版は更新していない。
+- v1 の主対象は ESP-IDF 版。Arduino 版も同じ microSD asset path に対応済み。
 - pet body の drag gesture はまだ区別していない。
 - `waving`, `jumping`, `failed` も loop 再生する。
 - one-shot state playback は未実装。

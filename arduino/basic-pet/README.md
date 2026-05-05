@@ -2,15 +2,18 @@
 
 This sketch targets M5Stack CoreS3-Lite with M5Unified/M5GFX.
 
-PNG files are stored in SPIFFS and decoded only when the current animation state
-changes. Runtime playback uses the decoded RGB565 frame cache with
+This sketch reads PNG assets from the CoreS3-Lite microSD slot. It uses the
+same SD card directory contract as the ESP-IDF `basic-pet` project.
+
+PNG files are decoded only when the current animation state changes. Runtime
+playback uses the decoded RGB565 frame cache with
 `M5.Display.pushImage()`.
 
-Expected SPIFFS paths are shortened for Arduino SPIFFS filename limits:
+Expected SD card paths:
 
 ```text
-/p0/s0/00.png
-/p1/s0/00.png
+/assets/aomi/display-96-png/idle/00.png
+/assets/bitomos-umi/display-96-png/review/00.png
 ```
 
 Generate PNG assets with:
@@ -19,19 +22,23 @@ Generate PNG assets with:
 mise run assets:build-display:all
 ```
 
-Copy the generated `display-96-png` directories into the SPIFFS data image under
-their pet IDs before flashing the filesystem.
+Copy the generated `display-96-png` directories to a FAT32 microSD card before
+booting the sketch:
 
-Compile for CoreS3 with the M5Stack Arduino core and the SPIFFS partition
-scheme used by this sketch:
+```sh
+SDCARD="/Volumes/NO NAME" mise run arduino:basic-pet:copy-sd-assets
+```
+
+`SDCARD` is the PC-side mount path. The sketch mounts the card at `/sdcard`
+internally regardless of the volume name.
+
+Compile for CoreS3 with the M5Stack Arduino core:
 
 ```sh
 mise run arduino:basic-pet:build
 ```
 
-The default M5CoreS3 partition scheme is FATFS, so `SPIFFS.begin()` will fail
-unless the sketch is built and uploaded with `PartitionScheme=factory_4apps`.
-Use the repo tasks to upload both firmware and assets:
+Use the repo task to upload firmware:
 
 ```sh
 PORT=/dev/cu.usbmodemXXXX mise run arduino:basic-pet:upload

@@ -7,7 +7,10 @@ idf_component_register(
         "../../../assets/bitomos-umi/display-96-png"
     REQUIRES
         esp_timer
-        spiffs
+        esp_driver_spi
+        esp_driver_sdspi
+        fatfs
+        sdmmc
         m5gfx
         m5unified
 )
