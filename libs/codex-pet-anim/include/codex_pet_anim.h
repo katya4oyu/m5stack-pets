@@ -27,6 +27,7 @@ struct Player {
   const PetSpec* spec;
   uint8_t stateIndex;
   uint8_t frameIndex;
+  uint8_t completedLoops;
   uint32_t frameStartedAtMs;
   bool dirty;
 };
@@ -80,8 +81,13 @@ inline uint8_t nextFrame(const PetSpec& spec, uint8_t stateIndex, uint8_t frameI
   return static_cast<uint8_t>((frameIndex + 1) % count);
 }
 
+inline bool isIdleState(const PetSpec& spec, uint8_t stateIndex) {
+  const char* name = stateName(spec, stateIndex);
+  return strcmp(name, "idle") == 0;
+}
+
 inline Player makePlayer(const PetSpec& spec, uint8_t initialStateIndex = 0, uint32_t nowMs = 0) {
-  Player player = {&spec, initialStateIndex, 0, nowMs, true};
+  Player player = {&spec, initialStateIndex, 0, 0, nowMs, true};
   if (initialStateIndex >= spec.stateCount) {
     player.stateIndex = 0;
   }
@@ -97,6 +103,7 @@ inline bool setState(Player& player, uint8_t stateIndex, uint32_t nowMs) {
   }
   player.stateIndex = stateIndex;
   player.frameIndex = 0;
+  player.completedLoops = 0;
   player.frameStartedAtMs = nowMs;
   player.dirty = true;
   return true;
@@ -121,7 +128,22 @@ inline bool update(Player& player, uint32_t nowMs) {
   if (duration == 0 || static_cast<uint32_t>(nowMs - player.frameStartedAtMs) < duration) {
     return false;
   }
-  player.frameIndex = nextFrame(*player.spec, player.stateIndex, player.frameIndex);
+  const uint8_t next = nextFrame(*player.spec, player.stateIndex, player.frameIndex);
+  if (next == 0 && !isIdleState(*player.spec, player.stateIndex)) {
+    player.completedLoops = static_cast<uint8_t>(player.completedLoops + 1);
+    if (player.completedLoops >= 3) {
+      uint8_t idleStateIndex = 0;
+      if (findStateIndex(*player.spec, "idle", &idleStateIndex)) {
+        player.stateIndex = idleStateIndex;
+        player.frameIndex = 0;
+        player.completedLoops = 0;
+        player.frameStartedAtMs = nowMs;
+        player.dirty = true;
+        return true;
+      }
+    }
+  }
+  player.frameIndex = next;
   player.frameStartedAtMs = nowMs;
   player.dirty = true;
   return true;

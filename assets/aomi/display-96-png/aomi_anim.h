@@ -4,7 +4,7 @@
 
 namespace aomi {
 
-static constexpr uint16_t k_idle_durations_ms[] = {280, 110, 110, 140, 140, 320};
+static constexpr uint16_t k_idle_durations_ms[] = {1680, 660, 660, 840, 840, 1920};
 static constexpr uint16_t k_running_right_durations_ms[] = {120, 120, 120, 120, 120, 120, 120, 220};
 static constexpr uint16_t k_running_left_durations_ms[] = {120, 120, 120, 120, 120, 120, 120, 220};
 static constexpr uint16_t k_waving_durations_ms[] = {140, 140, 140, 280};

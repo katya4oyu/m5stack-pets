@@ -64,7 +64,7 @@ Bitomos Umi では次の state を使います。
 
 | State | Timing |
 | --- | --- |
-| `idle` | 280, 110, 110, 140, 140, 320 ms |
+| `idle` | 1680, 660, 660, 840, 840, 1920 ms |
 | `running-right` | 各 120 ms、最後だけ 220 ms |
 | `running-left` | 各 120 ms、最後だけ 220 ms |
 | `waving` | 各 140 ms、最後だけ 280 ms |
@@ -176,11 +176,12 @@ loop ごとの処理:
 1. `millis()` または RTOS tick を読む。
 2. 現在フレームの表示時間を超えたか判定する。
 3. 超えていたら `currentFrame` を進める。
-4. loop state なら最後の次は 0 に戻す。
+4. `idle` なら最後の次は 0 に戻す。
 5. frame が変わった時だけ描画する。
 
-`idle`, `waiting`, `review`, `running` 系は loop で使います。`waving`, `jumping`,
-`failed` は一度再生したあと `idle` か `waiting` に戻すと扱いやすいです。
+Codex Pets に合わせるため、`idle` は基本 duration の 6 倍でゆっくり loop します。
+`running`, `waiting`, `review`, `waving`, `jumping`, `failed` などの非 idle state は
+3 loop 再生したあと `idle` に戻します。
 
 ## Arduino / M5Unified での方針
 

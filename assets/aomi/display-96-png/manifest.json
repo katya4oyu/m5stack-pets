@@ -21,42 +21,42 @@
         {
           "index": 0,
           "file": "idle/00.png",
-          "durationMs": 280
+          "durationMs": 1680
         },
         {
           "index": 1,
           "file": "idle/01.png",
-          "durationMs": 110
+          "durationMs": 660
         },
         {
           "index": 2,
           "file": "idle/02.png",
-          "durationMs": 110
+          "durationMs": 660
         },
         {
           "index": 3,
           "file": "idle/03.png",
-          "durationMs": 140
+          "durationMs": 840
         },
         {
           "index": 4,
           "file": "idle/04.png",
-          "durationMs": 140
+          "durationMs": 840
         },
         {
           "index": 5,
           "file": "idle/05.png",
-          "durationMs": 320
+          "durationMs": 1920
         }
       ],
       "frameCount": 6,
       "durationsMs": [
-        280,
-        110,
-        110,
-        140,
-        140,
-        320
+        1680,
+        660,
+        660,
+        840,
+        840,
+        1920
       ]
     },
     {
